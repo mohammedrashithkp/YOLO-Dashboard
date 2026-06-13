@@ -1,0 +1,29 @@
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+build/
+cmake-build-*/
+vcpkg_installed/
+
+# Runtime data (preserve directory structure via Dockerfile RUN mkdir)
+data/recordings/*
+data/logs/*
+data/metrics/*
+
+# IDE / editor
+.vscode
+.vs
+*.code-workspace
+
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Compiled objects
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk

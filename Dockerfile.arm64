@@ -1,0 +1,108 @@
+# =============================================================================
+# Stage 1: Builder — ARM64 / Raspberry Pi 5
+# =============================================================================
+FROM arm64v8/ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        pkg-config \
+        libopencv-dev \
+        libyaml-cpp-dev \
+        libspdlog-dev \
+        libssh2-1-dev \
+        libboost-all-dev \
+        libasio-dev \
+        libssl-dev \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# HailoRT SDK
+# ---------------------------------------------------------------------------
+# Option A — Install from Hailo APT repository (if available on target OS):
+#   RUN apt-get update && apt-get install -y hailo-all && rm -rf /var/lib/apt/lists/*
+#
+# Option B — Install from a local .deb copied into the build context:
+#   COPY hailort_*.deb /tmp/
+#   RUN dpkg -i /tmp/hailort_*.deb && rm /tmp/hailort_*.deb
+#
+# Option C — Mount HailoRT headers and libraries from the host at runtime
+#   (handled in docker-compose.rpi5.yml via bind-mount volumes).
+#
+# For CI/CD, prefer Option A or B. For local development, Option C is fastest.
+# ---------------------------------------------------------------------------
+# Attempt to install hailo-all; fall back gracefully if the repo is not set up.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends hailort 2>/dev/null \
+    || echo "HailoRT package not found — will rely on host-mounted libraries" \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY CMakeLists.txt ./
+COPY vcpkg.json     ./
+COPY include/       include/
+COPY src/           src/
+COPY web/           web/
+COPY config/        config/
+
+# Build with Hailo support enabled
+RUN cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DENABLE_HAILO=ON \
+        -DCROW_STATIC_DIRECTORY=/app/web \
+    && cmake --build build --parallel "$(nproc)" \
+    && cmake --install build --prefix /install
+
+# =============================================================================
+# Stage 2: Runtime — ARM64 / Raspberry Pi 5
+# =============================================================================
+FROM arm64v8/ubuntu:22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libopencv-core4.5d \
+        libopencv-imgproc4.5d \
+        libopencv-imgcodecs4.5d \
+        libopencv-videoio4.5d \
+        libopencv-highgui4.5d \
+        libyaml-cpp0.7 \
+        libspdlog1 \
+        libssh2-1 \
+        libboost-system1.74.0 \
+        libssl3 \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Attempt to install HailoRT runtime library
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends hailort 2>/dev/null \
+    || echo "HailoRT runtime not found — expecting host-mounted .so" \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /install/bin/YoloDashboard ./yolo_dashboard
+COPY --from=builder /build/web/   ./web/
+COPY --from=builder /build/config/ ./config/
+
+RUN mkdir -p /app/data/models \
+             /app/data/recordings \
+             /app/data/logs \
+             /app/data/metrics
+
+# ---------------------------------------------------------------------------
+# Device passthrough (handled in docker-compose.rpi5.yml):
+#   /dev/video0  — USB / CSI camera
+#   /dev/video1  — additional cameras
+#   /dev/hailo0  — Hailo-8L M.2 NPU
+# ---------------------------------------------------------------------------
+
+EXPOSE 8080
+
+ENTRYPOINT ["./yolo_dashboard"]

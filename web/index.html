@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="overlay active">
+        <div class="glass-card login-card">
+            <h2>YOLO Dashboard</h2>
+            <p>Sign in to access inference platform</p>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-container" class="hidden">
+        
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar glass-panel">
+            <div class="sidebar-header">
+                <div class="logo">YD</div>
+                <h3 class="app-title">Dashboard</h3>
+            </div>
+            
+            <ul class="nav-links">
+                <li><a href="#camera" class="active" data-section="camera">🎥 Camera</a></li>
+                <li><a href="#hardware" data-section="hardware">🧠 Hardware</a></li>
+                <li><a href="#model" data-section="model">📦 Model</a></li>
+                <li><a href="#inference" data-section="inference">⚡ Inference</a></li>
+                <li><a href="#metrics" data-section="metrics">📊 Metrics</a></li>
+                <li><a href="#config" data-section="config">⚙️ Config</a></li>
+                <li><a href="#recording" data-section="recording">📹 Recording</a></li>
+                <li><a href="#logs" data-section="logs">📋 Logs</a></li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Camera Section -->
+            <section id="camera-section" class="content-section active">
+                <div class="header-bar">
+                    <h2>Camera Setup</h2>
+                    <div class="status-indicator">
+                        <span id="camera-status-dot" class="dot dot-red"></span>
+                        <span id="camera-status-text">Disconnected</span>
+                    </div>
+                </div>
+
+                <div class="grid-2col">
+                    <div class="glass-card">
+                        <h3>Select Source</h3>
+                        <div class="control-group">
+                            <label>Device</label>
+                            <div class="flex-row">
+                                <select id="camera-select" class="flex-grow"></select>
+                                <button id="refresh-cameras" class="btn btn-secondary">↺</button>
+                            </div>
+                        </div>
+                        <button id="connect-camera" class="btn btn-primary mt-4">Connect Camera</button>
+                    </div>
+
+                    <div class="glass-card preview-container">
+                        <h3>Live Feed</h3>
+                        <div class="video-wrapper">
+                            <img id="camera-preview" src="" alt="Camera Stream Offline" class="hidden">
+                            <div id="camera-placeholder" class="placeholder">
+                                No signal
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Hardware Section -->
+            <section id="hardware-section" class="content-section hidden">
+                <h2>Hardware Info</h2>
+                <div class="grid-2col" id="hardware-cards">
+                    <!-- Cards populated via JS -->
+                </div>
+            </section>
+
+            <!-- Model Section -->
+            <section id="model-section" class="content-section hidden">
+                <h2>Model Management</h2>
+                <div class="glass-card">
+                    <div class="flex-row justify-between mb-4">
+                        <h3>Available Models</h3>
+                        <button class="btn btn-secondary btn-sm" id="refresh-models">Refresh</button>
+                    </div>
+                    <ul id="model-list" class="file-tree"></ul>
+                </div>
+            </section>
+
+            <!-- Inference Section -->
+            <section id="inference-section" class="content-section hidden">
+                <h2>Inference Control</h2>
+                <div class="grid-2col">
+                    <div class="glass-card">
+                        <h3>Settings</h3>
+                        <div class="control-group">
+                            <label>Confidence Threshold: <span id="conf-val">0.5</span></label>
+                            <input type="range" id="conf-thresh" min="0" max="1" step="0.05" value="0.5">
+                        </div>
+                        <button id="toggle-inference" class="btn btn-primary btn-block mt-4">Start Inference</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Add other sections similarly for Metrics, Config, Logs, Recording -->
+            <section id="metrics-section" class="content-section hidden">
+                <h2>Metrics Dashboard</h2>
+                <div class="glass-card">
+                    <p>Metrics visualization (Placeholder)</p>
+                </div>
+            </section>
+
+            <section id="config-section" class="content-section hidden">
+                <h2>Configuration</h2>
+                <div class="glass-card">
+                    <textarea id="config-editor" class="code-editor" rows="15"></textarea>
+                    <div class="mt-4 flex-row gap-2">
+                        <button id="save-config" class="btn btn-primary">Save Config</button>
+                        <button id="reload-config" class="btn btn-secondary">Reload</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# =============================================================================
+# Raspberry Pi 5 override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.rpi5.yml up -d
+# =============================================================================
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.arm64
+    devices:
+      - /dev/video0:/dev/video0
+      - /dev/hailo0:/dev/hailo0
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      # Host-mounted HailoRT firmware and kernel modules
+      - /lib/firmware:/lib/firmware:ro
+      - /lib/modules:/lib/modules:ro
+    environment:
+      - YOLO_DASHBOARD_PORT=8080
+      - HAILO_DEVICE=hailo0

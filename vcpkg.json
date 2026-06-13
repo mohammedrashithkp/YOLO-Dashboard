@@ -1,0 +1,18 @@
+{
+  "name": "yolo-dashboard",
+  "version-string": "1.0.0",
+  "description": "YOLO object detection dashboard with live camera feeds, inference, and web UI",
+  "homepage": "https://github.com/your-org/yolo-dashboard",
+  "dependencies": [
+    {
+      "name": "opencv4",
+      "default-features": true
+    },
+    "yaml-cpp",
+    "spdlog",
+    "libssh2",
+    "boost-asio",
+    "boost-optional",
+    "boost-lexical-cast"
+  ]
+}
