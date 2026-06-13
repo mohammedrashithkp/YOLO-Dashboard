@@ -43,6 +43,7 @@ private:
     cv::VideoWriter writer_;
     std::queue<cv::Mat> frame_queue_;
     mutable std::mutex queue_mutex_;
+    std::mutex state_mutex_;
     std::condition_variable queue_cv_;
     std::thread writer_thread_;
     std::atomic<bool> recording_{false};

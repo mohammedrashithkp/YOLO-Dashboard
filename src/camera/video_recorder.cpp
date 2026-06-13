@@ -47,6 +47,7 @@ std::string VideoRecorder::startRecording(const std::string& output_dir,
                                            Resolution resolution,
                                            double fps,
                                            const std::string& codec) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     if (recording_) {
         std::cerr << "[Recorder] Already recording" << std::endl;
         return current_filepath_;
@@ -89,6 +90,7 @@ std::string VideoRecorder::startRecording(const std::string& output_dir,
 }
 
 RecordingInfo VideoRecorder::stopRecording() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     RecordingInfo info;
 
     if (!recording_) return info;
@@ -164,6 +166,16 @@ std::vector<RecordingInfo> VideoRecorder::listRecordings(const std::string& dire
             info.filepath = entry.path().string();
             info.size_bytes = entry.file_size();
             info.is_active = false;
+            
+            cv::VideoCapture cap(info.filepath);
+            if (cap.isOpened()) {
+                double fps = cap.get(cv::CAP_PROP_FPS);
+                double frames = cap.get(cv::CAP_PROP_FRAME_COUNT);
+                if (fps > 0) {
+                    info.duration_seconds = frames / fps;
+                }
+            }
+            
             recordings.push_back(info);
         }
     }

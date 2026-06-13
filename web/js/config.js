@@ -26,10 +26,22 @@ const ConfigModule = {
     async saveConfig() {
         const yaml = document.getElementById('config-editor').value;
         try {
-            await ApiClient.post('/config', yaml);
-            Toast.show('Configuration saved', 'success');
+            // Send raw YAML text with correct content type (not JSON)
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    ...ApiClient.authHeaders,
+                    'Content-Type': 'application/x-yaml'
+                },
+                body: yaml
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to save');
+            }
+            Toast.show('Configuration saved successfully', 'success');
         } catch (e) {
-            Toast.show('Failed to save configuration', 'error');
+            Toast.show('Failed to save configuration: ' + e.message, 'error');
         }
     }
 };

@@ -68,6 +68,8 @@ private:
     crow::response handleStartRecording(const crow::request& req);
     crow::response handleStopRecording(const crow::request& req);
     crow::response handleListRecordings(const crow::request& req);
+    crow::response handleDeleteRecording(const crow::request& req);
+    crow::response handleDownloadRecording(const crow::request& req, const std::string& filename);
 
     // Stream
     void handleMjpegStream(const crow::request& req, crow::response& res);

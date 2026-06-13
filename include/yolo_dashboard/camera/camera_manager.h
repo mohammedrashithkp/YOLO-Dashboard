@@ -56,6 +56,7 @@ private:
 
     std::vector<CameraInfo> cached_cameras_;
     mutable std::mutex cameras_mutex_;
+    mutable std::recursive_mutex state_mutex_;
 };
 
 } // namespace yolo_dashboard

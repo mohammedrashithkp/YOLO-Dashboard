@@ -14,14 +14,24 @@ Application::~Application() {
 bool Application::initialize(const std::string& config_path) {
     // 1. Initialize config
     config_ = std::make_unique<ConfigManager>();
-    if (fs::exists(config_path)) {
-        if (!config_->loadFromFile(config_path)) {
-            std::cerr << "[WARN] Failed to load config from " << config_path
+    
+    // Check for user-saved config in persistent data directory first
+    std::string user_config_path = "./data/config.yaml";
+    std::string effective_config_path = config_path;
+    
+    if (fs::exists(user_config_path)) {
+        effective_config_path = user_config_path;
+        std::cout << "[INFO] Found user config at " << user_config_path << std::endl;
+    }
+    
+    if (fs::exists(effective_config_path)) {
+        if (!config_->loadFromFile(effective_config_path)) {
+            std::cerr << "[WARN] Failed to load config from " << effective_config_path
                       << ", using defaults" << std::endl;
             config_->resetToDefaults();
         }
     } else {
-        std::cout << "[INFO] Config file not found at " << config_path
+        std::cout << "[INFO] Config file not found at " << effective_config_path
                   << ", using defaults" << std::endl;
         config_->resetToDefaults();
     }

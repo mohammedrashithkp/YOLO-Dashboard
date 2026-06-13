@@ -2,6 +2,7 @@
 
 #include "yolo_dashboard/common.h"
 #include "yolo_dashboard/camera/camera_manager.h"
+#include "yolo_dashboard/camera/video_recorder.h"
 #include "yolo_dashboard/inference/inference_engine.h"
 #include "yolo_dashboard/metrics/metrics_collector.h"
 #include "crow.h"
@@ -12,7 +13,7 @@ namespace yolo_dashboard {
 
 class WebSocketHandler {
 public:
-    WebSocketHandler(CameraManager& camera, MetricsCollector& metrics);
+    WebSocketHandler(CameraManager& camera, MetricsCollector& metrics, VideoRecorder& recorder);
     ~WebSocketHandler();
 
     void registerRoutes(crow::SimpleApp& app);
@@ -23,6 +24,7 @@ public:
 
     void setInferenceEngine(InferenceEngine* engine) { inference_engine_ = engine; }
     void setInferenceRunning(bool running) { inference_running_ = running; }
+    void setInferenceMutex(std::mutex* m) { inference_mutex_ptr_ = m; }
 
 private:
     void broadcastFrame();
@@ -30,9 +32,11 @@ private:
 
     CameraManager& camera_;
     MetricsCollector& metrics_;
+    VideoRecorder& recorder_;
     
     InferenceEngine* inference_engine_ = nullptr;
     bool inference_running_ = false;
+    std::mutex* inference_mutex_ptr_ = nullptr;
 
     std::mutex stream_clients_mutex_;
     std::unordered_set<crow::websocket::connection*> stream_clients_;

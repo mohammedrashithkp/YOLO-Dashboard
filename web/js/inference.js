@@ -34,21 +34,47 @@ const InferenceModule = {
                 return;
             }
 
+            let firstModelLi = null;
+
             models.forEach(model => {
                 const li = document.createElement('li');
                 const icon = model.is_dir ? '📁' : '📄';
                 li.innerText = `${icon} ${model.name}`;
                 if (!model.is_dir) {
+                    if (!firstModelLi) firstModelLi = li;
+                    
                     li.addEventListener('click', () => {
                         // Deselect others
-                        document.querySelectorAll('.file-tree li').forEach(el => el.style.background = '');
+                        document.querySelectorAll('.file-tree li').forEach(el => {
+                            el.style.background = '';
+                            const badge = el.querySelector('.selected-badge');
+                            if (badge) badge.remove();
+                        });
                         li.style.background = 'rgba(255,255,255,0.1)';
+                        const badge = document.createElement('span');
+                        badge.className = 'selected-badge';
+                        badge.innerText = ' ✓ Selected';
+                        badge.style.color = 'var(--primary)';
+                        badge.style.marginLeft = '10px';
+                        li.appendChild(badge);
+                        
+                        // Prevent toast spam on initial auto-select
+                        if (this.selectedModelPath !== model.path && this.selectedModelPath !== '') {
+                            Toast.show(`Selected model: ${model.name}`);
+                        }
                         this.selectedModelPath = model.path;
-                        Toast.show(`Selected model: ${model.name}`);
                     });
+                    
+                    if (this.selectedModelPath === model.path) {
+                        firstModelLi = li;
+                    }
                 }
                 list.appendChild(li);
             });
+            
+            if (firstModelLi) {
+                firstModelLi.click();
+            }
         } catch (e) {
             Toast.show('Failed to fetch models', 'error');
         }
@@ -74,7 +100,12 @@ const InferenceModule = {
             }
             try {
                 btn.innerText = 'Loading...';
-                await ApiClient.post('/inference/start', { model_path: this.selectedModelPath });
+                const confSlider = document.getElementById('conf-thresh');
+                const threshold = confSlider ? parseFloat(confSlider.value) : 0.5;
+                await ApiClient.post('/inference/start', { 
+                    model_path: this.selectedModelPath,
+                    confidence_threshold: threshold
+                });
                 this.isRunning = true;
                 btn.innerText = 'Stop Inference';
                 btn.className = 'btn btn-secondary btn-block mt-4';

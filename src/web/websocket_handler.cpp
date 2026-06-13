@@ -5,8 +5,8 @@
 
 namespace yolo_dashboard {
 
-WebSocketHandler::WebSocketHandler(CameraManager& camera, MetricsCollector& metrics)
-    : camera_(camera), metrics_(metrics) {}
+WebSocketHandler::WebSocketHandler(CameraManager& camera, MetricsCollector& metrics, VideoRecorder& recorder)
+    : camera_(camera), metrics_(metrics), recorder_(recorder) {}
 
 WebSocketHandler::~WebSocketHandler() {
     // Crow handles connection cleanup, but we can clear our sets
@@ -54,15 +54,6 @@ void WebSocketHandler::broadcastUpdate() {
 }
 
 void WebSocketHandler::broadcastFrame() {
-    std::vector<crow::websocket::connection*> clients_copy;
-    {
-        std::lock_guard<std::mutex> lock(stream_clients_mutex_);
-        if (stream_clients_.empty()) return;
-        for (auto* conn : stream_clients_) {
-            clients_copy.push_back(conn);
-        }
-    }
-
     if (!camera_.isOpen()) return;
 
     cv::Mat frame;
@@ -70,10 +61,23 @@ void WebSocketHandler::broadcastFrame() {
 
     // Run inference if active
     if (inference_running_ && inference_engine_ && inference_engine_->isModelLoaded()) {
-        DetectionResult result = inference_engine_->infer(frame);
-        
-        // Draw bounding boxes on frame
-        for (const auto& det : result.detections) {
+        DetectionResult result;
+        bool did_infer = false;
+
+        if (inference_mutex_ptr_) {
+            std::lock_guard<std::mutex> lock(*inference_mutex_ptr_);
+            if (inference_running_ && inference_engine_ && inference_engine_->isModelLoaded()) {
+                result = inference_engine_->infer(frame);
+                did_infer = true;
+            }
+        } else {
+            result = inference_engine_->infer(frame);
+            did_infer = true;
+        }
+
+        if (did_infer) {
+            // Draw bounding boxes on frame
+            for (const auto& det : result.detections) {
             cv::rectangle(frame, cv::Point(det.x1, det.y1), cv::Point(det.x2, det.y2), cv::Scalar(0, 255, 0), 2);
             std::string label = det.class_name + " " + std::to_string(det.confidence).substr(0, 4);
             int baseLine;
@@ -86,6 +90,20 @@ void WebSocketHandler::broadcastFrame() {
         }
         
         metrics_.recordResult(result);
+    }
+    }
+
+    if (recorder_.isRecording()) {
+        recorder_.writeFrame(frame);
+    }
+
+    std::vector<crow::websocket::connection*> clients_copy;
+    {
+        std::lock_guard<std::mutex> lock(stream_clients_mutex_);
+        if (stream_clients_.empty()) return;
+        for (auto* conn : stream_clients_) {
+            clients_copy.push_back(conn);
+        }
     }
 
     std::vector<uint8_t> buf;

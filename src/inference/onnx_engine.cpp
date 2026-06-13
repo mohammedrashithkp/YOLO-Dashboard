@@ -10,7 +10,7 @@
 #include <chrono>
 
 // ONNX Runtime headers
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
 #include <onnxruntime_cxx_api.h>
 #endif
 
@@ -33,7 +33,7 @@ const std::vector<std::string> OnnxEngine::COCO_CLASSES = {
 };
 
 struct OnnxEngine::Impl {
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
     std::unique_ptr<Ort::Env> env;
     std::unique_ptr<Ort::Session> session;
     std::unique_ptr<Ort::SessionOptions> session_options;
@@ -49,7 +49,7 @@ struct OnnxEngine::Impl {
 };
 
 OnnxEngine::OnnxEngine() : impl_(std::make_unique<Impl>()) {
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
     impl_->env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_WARNING, "YoloDashboard");
 #endif
 }
@@ -59,7 +59,7 @@ OnnxEngine::~OnnxEngine() {
 }
 
 bool OnnxEngine::loadModel(const std::string& model_path) {
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
     try {
         unloadModel();
 
@@ -98,6 +98,16 @@ bool OnnxEngine::loadModel(const std::string& model_path) {
 
         input_height_ = static_cast<int>(impl_->input_shape[2]);
         input_width_ = static_cast<int>(impl_->input_shape[3]);
+        
+        // Handle dynamic spatial dimensions (-1) by falling back to 640x640
+        if (input_height_ <= 0) {
+            input_height_ = 640;
+            impl_->input_shape[2] = 640;
+        }
+        if (input_width_ <= 0) {
+            input_width_ = 640;
+            impl_->input_shape[3] = 640;
+        }
 
         // Get output info
         size_t num_outputs = impl_->session->GetOutputCount();
@@ -133,7 +143,7 @@ bool OnnxEngine::loadModel(const std::string& model_path) {
         return false;
     }
 #else
-    std::cerr << "[ONNX] ONNX Runtime not available (not compiled with ONNXRUNTIME_AVAILABLE)" << std::endl;
+    std::cerr << "[ONNX] ONNX Runtime not available (not compiled with ONNXRUNTIME_ENABLED)" << std::endl;
     // Store model info even if we can't load it
     model_info_.path = model_path;
     model_info_.name = fs::path(model_path).filename().string();
@@ -149,7 +159,7 @@ bool OnnxEngine::loadModel(const std::string& model_path) {
 DetectionResult OnnxEngine::infer(const cv::Mat& frame) {
     DetectionResult result;
 
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
     if (!model_loaded_ || !impl_->session) return result;
 
     auto total_start = Clock::now();
@@ -204,7 +214,7 @@ DetectionResult OnnxEngine::infer(const cv::Mat& frame) {
 }
 
 void OnnxEngine::unloadModel() {
-#ifdef ONNXRUNTIME_AVAILABLE
+#ifdef ONNXRUNTIME_ENABLED
     impl_->session.reset();
     impl_->session_options.reset();
     impl_->input_names.clear();

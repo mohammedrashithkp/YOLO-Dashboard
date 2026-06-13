@@ -21,8 +21,9 @@ RouteHandler::RouteHandler(CameraManager& camera, VideoRecorder& recorder,
         config_.getConfig().inference_mode == "npu" ? InferenceMode::NPU : InferenceMode::CPU
     );
     
-    ws_handler = std::make_unique<WebSocketHandler>(camera_, metrics_);
+    ws_handler = std::make_unique<WebSocketHandler>(camera_, metrics_, recorder_);
     ws_handler->setInferenceEngine(inference_engine_.get());
+    ws_handler->setInferenceMutex(&inference_mutex_);
 }
 
 bool RouteHandler::checkAuth(const crow::request& req, crow::response& res) {
@@ -33,6 +34,9 @@ bool RouteHandler::checkAuth(const crow::request& req, crow::response& res) {
         std::string token = auth_header.substr(7);
         if (auth_.validateToken(token)) return true;
     }
+    
+    auto token_param = req.url_params.get("token");
+    if (token_param && auth_.validateToken(token_param)) return true;
 
     res.code = 401;
     res.body = R"({"error": "Unauthorized"})";
@@ -103,6 +107,25 @@ void RouteHandler::registerRoutes(crow::SimpleApp& app) {
     
     CROW_ROUTE(app, "/api/config").methods(crow::HTTPMethod::POST)
     ([&](const crow::request& req) { AUTH_GUARD(); return handleUpdateConfig(req); });
+
+    // Recording
+    CROW_ROUTE(app, "/api/recording/start").methods(crow::HTTPMethod::POST)
+    ([&](const crow::request& req) { AUTH_GUARD(); return handleStartRecording(req); });
+
+    CROW_ROUTE(app, "/api/recording/stop").methods(crow::HTTPMethod::POST)
+    ([&](const crow::request& req) { AUTH_GUARD(); return handleStopRecording(req); });
+
+    CROW_ROUTE(app, "/api/recording/list")
+    ([&](const crow::request& req) { AUTH_GUARD(); return handleListRecordings(req); });
+
+    CROW_ROUTE(app, "/api/recording/delete").methods(crow::HTTPMethod::POST)
+    ([&](const crow::request& req) { AUTH_GUARD(); return handleDeleteRecording(req); });
+
+    CROW_ROUTE(app, "/api/recording/download/<string>")
+    ([&](const crow::request& req, std::string filename) {
+        AUTH_GUARD();
+        return handleDownloadRecording(req, filename);
+    });
 
     // MJPEG Stream over HTTP
     CROW_ROUTE(app, "/api/stream")
@@ -243,6 +266,13 @@ crow::response RouteHandler::handleStartInference(const crow::request& req) {
     
     std::lock_guard<std::mutex> lock(inference_mutex_);
     
+    // Apply confidence threshold if provided
+    if (body.has("confidence_threshold")) {
+        float thresh = static_cast<float>(body["confidence_threshold"].d());
+        inference_engine_->setConfidenceThreshold(thresh);
+        std::cout << "[Inference] Confidence threshold set to " << thresh << std::endl;
+    }
+    
     if (inference_engine_->loadModel(body["model_path"].s())) {
         inference_running_ = true;
         ws_handler->setInferenceRunning(true);
@@ -284,9 +314,31 @@ crow::response RouteHandler::handleGetConfig(const crow::request& /*req*/) {
 }
 
 crow::response RouteHandler::handleUpdateConfig(const crow::request& req) {
-    if (config_.updateFromString(req.body)) {
-        config_.saveToFile(config_.getCurrentFilePath());
-        return crow::response(200, R"({"status": "success"})");
+    // The frontend may send raw YAML or JSON-stringified YAML.
+    // Try to detect which one it is.
+    std::string yaml_content = req.body;
+
+    // If it's JSON-stringified (starts with quote), unwrap it
+    if (!yaml_content.empty() && yaml_content.front() == '"') {
+        // Parse as JSON to extract the string
+        auto parsed = crow::json::load(yaml_content);
+        if (parsed) {
+            yaml_content = parsed.s();
+        }
+    }
+
+    if (config_.updateFromString(yaml_content)) {
+        // Always save to the persistent data directory
+        std::string save_path = "./data/config.yaml";
+        
+        // Also update the internal filepath so subsequent saves go here
+        if (config_.saveToFile(save_path)) {
+            std::cout << "[Config] Saved configuration to " << save_path << std::endl;
+            return crow::response(200, R"({"status": "success"})");
+        } else {
+            std::cerr << "[Config] Failed to write config to " << save_path << std::endl;
+            return crow::response(500, R"({"error": "Failed to write config file"})");
+        }
     }
     return crow::response(400, R"({"error": "Invalid config"})");
 }
@@ -304,6 +356,88 @@ void RouteHandler::handleMjpegStream(const crow::request& /*req*/, crow::respons
         std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
     res.end();
+}
+
+crow::response RouteHandler::handleStartRecording(const crow::request& /*req*/) {
+    if (recorder_.isRecording()) {
+        return crow::response(400, crow::json::wvalue({{"error", "Already recording"}}));
+    }
+    
+    if (!camera_.isOpen()) {
+        return crow::response(400, crow::json::wvalue({{"error", "Camera not connected"}}));
+    }
+
+    Resolution res{640, 480}; 
+    std::string path = recorder_.startRecording("data/recordings", res, 30.0);
+    
+    if (path.empty()) {
+        return crow::response(500, crow::json::wvalue({{"error", "Failed to start recording"}}));
+    }
+    
+    return crow::response(200, crow::json::wvalue({{"status", "started"}}));
+}
+
+crow::response RouteHandler::handleStopRecording(const crow::request& /*req*/) {
+    if (!recorder_.isRecording()) {
+        return crow::response(400, R"({"error": "Not recording"})");
+    }
+    
+    auto info = recorder_.stopRecording();
+    crow::json::wvalue res;
+    res["status"] = "stopped";
+    res["filename"] = info.filename;
+    res["duration_sec"] = info.duration_seconds;
+    res["size_mb"] = info.size_bytes / (1024.0 * 1024.0);
+    
+    return crow::response(200, res);
+}
+
+crow::response RouteHandler::handleListRecordings(const crow::request& /*req*/) {
+    auto recs = VideoRecorder::listRecordings("data/recordings");
+    crow::json::wvalue res;
+    int i = 0;
+    for (const auto& r : recs) {
+        res[i]["filename"] = r.filename;
+        res[i]["duration_sec"] = r.duration_seconds;
+        res[i]["size_mb"] = r.size_bytes / (1024.0 * 1024.0);
+        i++;
+    }
+    if (recs.empty()) res = std::vector<std::string>();
+    return crow::response(200, res);
+}
+
+crow::response RouteHandler::handleDeleteRecording(const crow::request& req) {
+    auto body = crow::json::load(req.body);
+    if (!body || !body.has("filename")) {
+        return crow::response(400, R"({"error": "Missing filename"})");
+    }
+    
+    std::string filename = body["filename"].s();
+    // basic security: prevent path traversal
+    if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos) {
+        return crow::response(400, R"({"error": "Invalid filename"})");
+    }
+    
+    std::string filepath = "data/recordings/" + filename;
+    if (std::filesystem::exists(filepath)) {
+        std::filesystem::remove(filepath);
+        return crow::response(200, R"({"status": "deleted"})");
+    }
+    return crow::response(404, R"({"error": "File not found"})");
+}
+
+crow::response RouteHandler::handleDownloadRecording(const crow::request& /*req*/, const std::string& filename) {
+    if (filename.find("..") != std::string::npos || filename.find('/') != std::string::npos) {
+        return crow::response(400, crow::json::wvalue({{"error", "Invalid filename"}}));
+    }
+    std::string filepath = "data/recordings/" + filename;
+    if (std::filesystem::exists(filepath) && std::filesystem::is_regular_file(filepath)) {
+        crow::response res;
+        res.set_static_file_info(filepath);
+        res.set_header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        return res;
+    }
+    return crow::response(404, crow::json::wvalue({{"error", "File not found"}}));
 }
 
 } // namespace yolo_dashboard

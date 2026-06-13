@@ -36,6 +36,20 @@ if(NOT onnxruntime_FOUND)
     endif()
 endif()
 
+if(NOT onnxruntime_FOUND AND NOT ONNXRUNTIME_FOUND)
+    # Manual fallback for prebuilt binaries without CMake config
+    find_path(ONNXRUNTIME_INCLUDE_DIR onnxruntime_cxx_api.h PATHS /usr/local/include /usr/include)
+    find_library(ONNXRUNTIME_LIBRARY NAMES onnxruntime PATHS /usr/local/lib /usr/lib)
+    if(ONNXRUNTIME_INCLUDE_DIR AND ONNXRUNTIME_LIBRARY)
+        set(onnxruntime_FOUND TRUE)
+        add_library(onnxruntime::onnxruntime UNKNOWN IMPORTED)
+        set_target_properties(onnxruntime::onnxruntime PROPERTIES
+            IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${ONNXRUNTIME_INCLUDE_DIR}"
+        )
+    endif()
+endif()
+
 # ---------------------------------------------------------------------------
 # FetchContent — Crow (header-only) and nlohmann/json
 # ---------------------------------------------------------------------------

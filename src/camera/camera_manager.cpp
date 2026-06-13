@@ -18,6 +18,7 @@ std::vector<CameraInfo> CameraManager::listCameras() {
 }
 
 bool CameraManager::openCamera(int device_id, Resolution res, int fps) {
+    std::lock_guard<std::recursive_mutex> lock(state_mutex_);
     closeCamera(); // Close any existing camera first
 
     target_fps_ = fps;
@@ -60,6 +61,7 @@ bool CameraManager::openCamera(int device_id, Resolution res, int fps) {
 }
 
 void CameraManager::closeCamera() {
+    std::lock_guard<std::recursive_mutex> lock(state_mutex_);
     running_ = false;
     if (capture_thread_.joinable()) {
         capture_thread_.join();

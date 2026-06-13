@@ -136,19 +136,32 @@ const app = {
         const targetSection = document.getElementById(sectionId);
         if (targetSection) {
             targetSection.classList.remove('hidden');
+            document.querySelector(`[data-section="${hash.substring(1)}"]`)?.classList.add('active');
+            
+            // Refresh data dynamically when navigating
+            if (hash === '#hardware' && window.HardwareModule) {
+                window.HardwareModule.fetchHardware();
+            } else if (hash === '#model' && window.InferenceModule) {
+                window.InferenceModule.fetchModels();
+            } else if (hash === '#config' && window.ConfigModule) {
+                window.ConfigModule.loadConfig();
+            }
         } else {
             // Default to camera
             document.getElementById('camera-section').classList.remove('hidden');
-            document.querySelector('[data-section="camera"]').classList.add('active');
+            document.querySelector('[data-section="camera"]')?.classList.add('active');
         }
     },
 
     async loadInitialData() {
+        if (this.initialized) return;
+        this.initialized = true;
         // Init modules
-        import('./camera.js').then(m => m.default.init());
-        import('./hardware.js').then(m => m.default.init());
-        import('./config.js').then(m => m.default.init());
-        import('./inference.js').then(m => m.default.init());
+        import('./camera.js').then(m => { window.CameraModule = m.default; m.default.init(); });
+        import('./hardware.js').then(m => { window.HardwareModule = m.default; m.default.init(); });
+        import('./config.js').then(m => { window.ConfigModule = m.default; m.default.init(); });
+        import('./inference.js').then(m => { window.InferenceModule = m.default; m.default.init(); });
+        import('./recorder.js').then(m => { window.RecorderModule = m.default; m.default.init(); });
     }
 };
 

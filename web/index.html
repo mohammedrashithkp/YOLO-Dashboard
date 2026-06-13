@@ -20,11 +20,11 @@
             <form id="login-form">
                 <div class="input-group">
                     <label>Username</label>
-                    <input type="text" id="username" required>
+                    <input type="text" id="username" autocomplete="username" required>
                 </div>
                 <div class="input-group">
                     <label>Password</label>
-                    <input type="password" id="password" required>
+                    <input type="password" id="password" autocomplete="current-password" required>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Login</button>
             </form>
@@ -60,38 +60,36 @@
         <!-- Main Content Area -->
         <main class="main-content">
             
-            <!-- Camera Section -->
-            <section id="camera-section" class="content-section active">
-                <div class="header-bar">
-                    <h2>Camera Setup</h2>
+            <!-- Global Live Feed -->
+            <div class="glass-card preview-container mb-4" id="global-preview">
+                <div class="header-bar mb-2">
+                    <h3>Live Camera & Inference Feed</h3>
                     <div class="status-indicator">
                         <span id="camera-status-dot" class="dot dot-red"></span>
                         <span id="camera-status-text">Disconnected</span>
                     </div>
                 </div>
-
-                <div class="grid-2col">
-                    <div class="glass-card">
-                        <h3>Select Source</h3>
-                        <div class="control-group">
-                            <label>Device</label>
-                            <div class="flex-row">
-                                <select id="camera-select" class="flex-grow"></select>
-                                <button id="refresh-cameras" class="btn btn-secondary">↺</button>
-                            </div>
-                        </div>
-                        <button id="connect-camera" class="btn btn-primary mt-4">Connect Camera</button>
+                <div class="video-wrapper">
+                    <div id="recording-tag" class="recording-tag hidden">🔴 REC</div>
+                    <img id="camera-preview" src="" alt="Camera Stream Offline" class="hidden">
+                    <div id="camera-placeholder" class="placeholder">
+                        No signal
                     </div>
+                </div>
+            </div>
 
-                    <div class="glass-card preview-container">
-                        <h3>Live Feed</h3>
-                        <div class="video-wrapper">
-                            <img id="camera-preview" src="" alt="Camera Stream Offline" class="hidden">
-                            <div id="camera-placeholder" class="placeholder">
-                                No signal
-                            </div>
+            <!-- Camera Section -->
+            <section id="camera-section" class="content-section active">
+                <div class="glass-card">
+                    <h3>Select Source</h3>
+                    <div class="control-group">
+                        <label>Device</label>
+                        <div class="flex-row">
+                            <select id="camera-select" class="flex-grow"></select>
+                            <button id="refresh-cameras" class="btn btn-secondary">↺</button>
                         </div>
                     </div>
+                    <button id="connect-camera" class="btn btn-primary mt-4">Connect Camera</button>
                 </div>
             </section>
 
@@ -121,8 +119,8 @@
                 <div class="grid-2col">
                     <div class="glass-card">
                         <h3>Settings</h3>
-                        <div class="control-group">
-                            <label>Confidence Threshold: <span id="conf-val">0.5</span></label>
+                        <div class="mt-4">
+                            <label>Confidence Threshold: <span id="conf-val">0.50</span></label>
                             <input type="range" id="conf-thresh" min="0" max="1" step="0.05" value="0.5">
                         </div>
                         <button id="toggle-inference" class="btn btn-primary btn-block mt-4">Start Inference</button>
@@ -130,7 +128,47 @@
                 </div>
             </section>
 
-            <!-- Add other sections similarly for Metrics, Config, Logs, Recording -->
+            <!-- Recording Section -->
+            <section id="recording-section" class="content-section hidden">
+                <div class="header-bar">
+                    <h2>Video Recording</h2>
+                </div>
+                
+                <div class="grid-2col">
+                    <div class="glass-card">
+                        <h3>Recording Control</h3>
+                        <div class="control-group">
+                            <button id="start-recording" class="btn btn-primary btn-block mb-4">▶ Start Recording</button>
+                            <button id="stop-recording" class="btn btn-secondary btn-block" disabled>⏹ Stop Recording</button>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card mt-4">
+                    <div class="flex-row justify-between align-center mb-4">
+                        <h3>Saved Recordings</h3>
+                        <div>
+                            <button id="refresh-recordings" class="btn btn-secondary btn-sm">Refresh</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="flex-row align-center mb-4" style="gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
+                        <label class="flex-row align-center" style="gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="select-all-recordings"> 
+                            Select All
+                        </label>
+                        <button id="download-selected" class="btn btn-primary btn-sm" disabled>Download Selected</button>
+                        <button id="delete-selected" class="btn btn-secondary btn-sm" style="color: var(--danger);" disabled>Delete Selected</button>
+                    </div>
+
+                    <ul id="recordings-list" class="mt-4" style="list-style:none; padding:0;">
+                        <!-- JS injected -->
+                    </ul>
+                </div>
+                </div>
+            </section>
+
+            <!-- Add other sections similarly for Metrics, Config, Logs -->
             <section id="metrics-section" class="content-section hidden">
                 <h2>Metrics Dashboard</h2>
                 <div class="glass-card">
@@ -146,6 +184,16 @@
                         <button id="save-config" class="btn btn-primary">Save Config</button>
                         <button id="reload-config" class="btn btn-secondary">Reload</button>
                     </div>
+                </div>
+            </section>
+
+            <!-- Logs Section -->
+            <section id="logs-section" class="content-section hidden">
+                <div class="header-bar">
+                    <h2>System Logs</h2>
+                </div>
+                <div class="glass-card">
+                    <p class="text-muted">Log viewing is not yet implemented.</p>
                 </div>
             </section>
 
