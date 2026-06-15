@@ -11,6 +11,7 @@ const CameraModule = {
     bindEvents() {
         document.getElementById('refresh-cameras').addEventListener('click', () => this.fetchCameras());
         document.getElementById('connect-camera').addEventListener('click', () => this.connectCamera());
+        document.getElementById('disconnect-camera').addEventListener('click', () => this.disconnectCamera());
     },
 
     async fetchCameras() {
@@ -48,15 +49,33 @@ const CameraModule = {
             document.getElementById('camera-status-dot').className = 'dot dot-green';
             document.getElementById('camera-status-text').innerText = 'Connected';
             
-            // Show MJPEG stream fallback if WS fails
-            // document.getElementById('camera-preview').src = `/api/stream?t=${Date.now()}`;
-            // document.getElementById('camera-preview').classList.remove('hidden');
-            // document.getElementById('camera-placeholder').classList.add('hidden');
+            document.getElementById('connect-camera').classList.add('hidden');
+            document.getElementById('disconnect-camera').classList.remove('hidden');
             
         } catch (e) {
             Toast.show('Failed to connect camera', 'error');
             document.getElementById('camera-status-dot').className = 'dot dot-red';
             document.getElementById('camera-status-text').innerText = 'Disconnected';
+        }
+    },
+
+    async disconnectCamera() {
+        try {
+            await ApiClient.post('/cameras/disconnect');
+            Toast.show('Camera disconnected', 'success');
+            
+            document.getElementById('camera-status-dot').className = 'dot dot-red';
+            document.getElementById('camera-status-text').innerText = 'Disconnected';
+            
+            document.getElementById('connect-camera').classList.remove('hidden');
+            document.getElementById('disconnect-camera').classList.add('hidden');
+            
+            // clear preview
+            document.getElementById('camera-preview').classList.add('hidden');
+            document.getElementById('camera-placeholder').classList.remove('hidden');
+            
+        } catch (e) {
+            Toast.show('Failed to disconnect camera', 'error');
         }
     },
 

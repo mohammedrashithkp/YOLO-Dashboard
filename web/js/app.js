@@ -78,6 +78,26 @@ const app = {
             ApiClient.post('/auth/logout').finally(() => this.logout());
         });
 
+        const shutdownBtn = document.getElementById('shutdown-btn');
+        if (shutdownBtn) {
+            shutdownBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to shut down the server? You will need to manually restart the containers later.')) {
+                    shutdownBtn.disabled = true;
+                    shutdownBtn.innerText = '⏳';
+                    ApiClient.post('/system/shutdown').then(res => {
+                        Toast.show(res.message || 'Server shutting down...', 'success');
+                        setTimeout(() => {
+                            document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; background:var(--bg-dark); color:var(--text-light);"><h1 style="font-family: Inter, sans-serif; margin-bottom: 1rem;">Server Offline</h1><p style="color:var(--text-muted); font-family: Inter, sans-serif;">The YOLO Dashboard has been stopped successfully. You may close this tab.</p></div>';
+                        }, 2000);
+                    }).catch(e => {
+                        Toast.show(e.message || 'Failed to shutdown', 'error');
+                        shutdownBtn.disabled = false;
+                        shutdownBtn.innerText = '⏻';
+                    });
+                }
+            });
+        }
+
         // Navigation clicks
         document.querySelectorAll('.nav-links a').forEach(link => {
             link.addEventListener('click', (e) => {

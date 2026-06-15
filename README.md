@@ -8,7 +8,9 @@ A high-performance, cross-platform AI Inference Management Platform designed to 
 - **Premium Web UI:** A beautiful, responsive glassmorphism dashboard built with Vanilla HTML/CSS/JS.
 - **Real-Time Streaming:** Live MJPEG camera feeds directly to the browser.
 - **Live Metrics:** Real-time FPS, latency, and detection charting via WebSockets.
-- **Dockerized:** Simple multi-stage Dockerfiles for both `amd64` (Windows/Linux) and `arm64` (Raspberry Pi 5) platforms.
+- **Dockerized & Cross-Architecture:** Simple multi-stage Dockerfiles that auto-detect `amd64` and `arm64` platforms.
+- **Remote Server Management:** Fully control the application from the UI, including disconnecting active cameras and gracefully shutting down the Docker containers.
+- **Persistent Configuration:** All application settings and preferences survive container restarts.
 
 ## System Architecture 🏗️
 The project uses a monolithic C++ backend serving a single-page application (SPA) frontend.

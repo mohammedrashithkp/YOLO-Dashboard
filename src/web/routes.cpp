@@ -87,6 +87,13 @@ void RouteHandler::registerRoutes(crow::SimpleApp& app) {
     CROW_ROUTE(app, "/api/cameras/select").methods(crow::HTTPMethod::POST)
     ([&](const crow::request& req) { AUTH_GUARD(); return handleSelectCamera(req); });
 
+    CROW_ROUTE(app, "/api/cameras/disconnect").methods(crow::HTTPMethod::POST)
+    ([&](const crow::request& req) { 
+        AUTH_GUARD(); 
+        camera_.closeCamera();
+        return crow::response(200, R"({"status": "success", "message": "Camera disconnected"})");
+    });
+
     // Models
     CROW_ROUTE(app, "/api/models/browse")
     ([&](const crow::request& req) { AUTH_GUARD(); return handleBrowseModels(req); });
@@ -97,7 +104,20 @@ void RouteHandler::registerRoutes(crow::SimpleApp& app) {
     
     CROW_ROUTE(app, "/api/inference/stop").methods(crow::HTTPMethod::POST)
     ([&](const crow::request& req) { AUTH_GUARD(); return handleStopInference(req); });
-    
+
+    // System Shutdown
+    CROW_ROUTE(app, "/api/system/shutdown").methods(crow::HTTPMethod::POST)
+    ([&](const crow::request& req) { 
+        AUTH_GUARD(); 
+        std::thread([&]() {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            // Stop the nginx proxy
+            std::system("curl -s --unix-socket /var/run/docker.sock -X POST http://localhost/containers/yolo-nginx/stop");
+            // Stop the app itself
+            std::system("curl -s --unix-socket /var/run/docker.sock -X POST http://localhost/containers/yolo-dashboard/stop");
+        }).detach();
+        return crow::response(200, R"({"status": "shutting_down", "message": "Server shutting down..."})");
+    });
     CROW_ROUTE(app, "/api/inference/status")
     ([&](const crow::request& req) { AUTH_GUARD(); return handleInferenceStatus(req); });
 

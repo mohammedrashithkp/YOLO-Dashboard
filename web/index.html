@@ -52,8 +52,9 @@
                 <li><a href="#logs" data-section="logs">📋 Logs</a></li>
             </ul>
 
-            <div class="sidebar-footer">
-                <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+            <div class="sidebar-footer" style="display: flex; gap: 0.5rem; justify-content: center;">
+                <button id="logout-btn" class="btn btn-secondary btn-sm" style="flex-grow: 1;">Logout</button>
+                <button id="shutdown-btn" class="btn btn-primary btn-sm" style="background: var(--danger); border-color: var(--danger);" title="Shutdown Server">⏻</button>
             </div>
         </nav>
 
@@ -89,7 +90,10 @@
                             <button id="refresh-cameras" class="btn btn-secondary">↺</button>
                         </div>
                     </div>
-                    <button id="connect-camera" class="btn btn-primary mt-4">Connect Camera</button>
+                    <div class="flex-row gap-2 mt-4">
+                        <button id="connect-camera" class="btn btn-primary flex-grow">Connect Camera</button>
+                        <button id="disconnect-camera" class="btn btn-secondary flex-grow hidden">Disconnect Camera</button>
+                    </div>
                 </div>
             </section>
 
